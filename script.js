@@ -16,11 +16,7 @@ function Gameboard() {
     return true;
   };
 
-  const printBoard = () => {
-    const boardWithCellValues = board.map((cell) => cell.getValue());
-    console.log(boardWithCellValues);
-  };
-  return { getBoard, placeMarker, printBoard };
+  return { getBoard, placeMarker };
 }
 
 function Cell() {
@@ -35,7 +31,7 @@ function Cell() {
   return { addMarker, getValue };
 }
 
-function GameControl(playerOneName = 'PlayerOne', playerTwoName = 'PlayerTwo') {
+function GameControl(playerOneName = 'X', playerTwoName = 'O') {
   const board = Gameboard();
 
   const players = [
@@ -51,29 +47,47 @@ function GameControl(playerOneName = 'PlayerOne', playerTwoName = 'PlayerTwo') {
 
   const getActivePlayer = () => activePlayer;
 
-  const printNewRound = () => {
-    board.printBoard();
-    console.log(`It's ${getActivePlayer().name}'s turn`);
+  let winner = '';
+
+  const getWinner = () => winner;
+
+  const checkWinner = (board, marker) => {
+    const winCombos = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+    return winCombos.some((combo) => {
+      return combo.every((index) => board[index].getValue() === marker);
+    });
   };
 
   const playRound = (cell) => {
+    if (winner) return;
+
     const moveSuccessful = board.placeMarker(cell, getActivePlayer().marker);
     if (moveSuccessful) {
-      switchPlayerTurn();
+      if (checkWinner(board.getBoard(), getActivePlayer().marker)) {
+        winner = getActivePlayer();
+      } else {
+        switchPlayerTurn();
+      }
     }
-
-    printNewRound();
   };
 
-  printNewRound();
-
-  return { playRound, getActivePlayer, getBoard: board.getBoard };
+  return { playRound, getActivePlayer, getWinner, getBoard: board.getBoard };
 }
 
 function ScreenControl() {
   const game = GameControl();
   const playerTurnDiv = document.querySelector('.playerTurn');
   const boardDiv = document.querySelector('.gameBoard');
+  const controlsDiv = document.querySelector('.controls');
 
   const renderBoard = () => {
     boardDiv.textContent = '';
@@ -91,6 +105,16 @@ function ScreenControl() {
       cellButton.disabled = cell.getValue() !== '';
       boardDiv.appendChild(cellButton);
     });
+
+    const winner = game.getWinner();
+    if (winner) {
+      playerTurnDiv.textContent = `${winner.name} wins!`;
+      boardDiv.querySelectorAll('button').forEach((button) => (button.disabled = true));
+      renderReplayButton();
+    } else if (board.every((cell) => cell.getValue() !== '')) {
+      playerTurnDiv.textContent = `It's a draw!`;
+      renderReplayButton();
+    }
   };
 
   function handleBoardClick(e) {
@@ -99,6 +123,23 @@ function ScreenControl() {
     game.playRound(parseInt(selectedCell));
     renderBoard();
   }
+
+  const renderReplayButton = () => {
+    controlsDiv.textContent = '';
+    const replayButton = document.createElement('button');
+    replayButton.textContent = 'Replay';
+    replayButton.classList.add('replay-button');
+    replayButton.addEventListener('click', resetGame);
+    controlsDiv.appendChild(replayButton);
+  };
+
+  const resetGame = () => {
+    controlsDiv.textContent = '';
+    playerTurnDiv.textContent = '';
+    const newGame = GameControl();
+    Object.assign(game, newGame);
+    renderBoard();
+  };
 
   boardDiv.addEventListener('click', handleBoardClick);
 
